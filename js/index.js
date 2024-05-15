@@ -1121,48 +1121,63 @@
     }
 
     function setMnemonicFromEntropy() {
-        // Get entropy value
-        var entropyStr = DOM.entropy.val();
-        // Work out minimum base for entropy
-        var entropy = Entropy.fromString(entropyStr);
-        if (entropy.binaryStr.length == 0) {
-            return;
-        }
- 
-        // Use entropy hash if not using raw entropy
-        var bits = entropy.binaryStr;
-        var mnemonicLength = DOM.entropyMnemonicLength.val();
-        if (mnemonicLength != "raw") {
-            // Get bits by hashing entropy with SHA256
-            var hash = sjcl.hash.sha256.hash(entropy.cleanStr);
-            var hex = sjcl.codec.hex.fromBits(hash);
-            bits = BigInteger.parse(hex, 16).toString(2);
-            while (bits.length % 256 != 0) {
-                bits = "0" + bits;
-            }
-            // Truncate hash to suit number of words
-            mnemonicLength = parseInt(mnemonicLength);
-            var numberOfBits = 32 * mnemonicLength / 3;
-            bits = bits.substring(0, numberOfBits);
-        }
-        // Discard trailing entropy
-        var bitsToUse = Math.floor(bits.length / 32) * 32;
-        var start = bits.length - bitsToUse;
-        var binaryStr = bits.substring(start);
-        // Convert entropy string to numeric array
-        var entropyArr = [];
-        for (var i=0; i<binaryStr.length / 8; i++) {
-            var byteAsBits = binaryStr.substring(i*8, i*8+8);
-            var entropyByte = parseInt(byteAsBits, 2);
-            entropyArr.push(entropyByte)
-        }
-        // Convert entropy array to mnemonic
-        var phrase = mnemonic.toMnemonic(entropyArr);
-        // Set the mnemonic in the UI
-        DOM.phrase.val(phrase);
-        // Show the word indexes
-        //showWordIndexes();
+    // Get entropy value
+    var entropyStr = DOM.entropy.val();
+    console.log("Entropy String:", entropyStr);
+    
+    // Work out minimum base for entropy
+    var entropy = Entropy.fromString(entropyStr);
+    console.log("Entropy (cleanStr):", entropy.cleanStr);
+    console.log("Entropy (binaryStr):", entropy.binaryStr);
+
+    if (entropy.binaryStr.length === 0) {
+        console.error("No entropy provided.");
+        return;
     }
+
+    // Always use the hashed entropy
+    var hash = sjcl.hash.sha256.hash(entropy.cleanStr);
+    var hex = sjcl.codec.hex.fromBits(hash);
+    console.log("SHA-256 Hash (hex):", hex);
+
+    var bits = BigInt(`0x${hex}`).toString(2).padStart(256, '0');
+    console.log("SHA-256 Hash (binary):", bits);
+
+    // Get the mnemonic length
+    var mnemonicLength = parseInt(DOM.entropyMnemonicLength.val());
+    var numberOfBits = 32 * mnemonicLength / 3;
+    bits = bits.substring(0, numberOfBits);
+    console.log("Truncated Bits:", bits);
+
+    // Discard trailing entropy
+    var bitsToUse = Math.floor(bits.length / 32) * 32;
+    var start = bits.length - bitsToUse;
+    var binaryStr = bits.substring(start);
+    console.log("Binary String to Use:", binaryStr);
+
+    // Convert entropy string to numeric array
+    var entropyArr = [];
+    for (var i = 0; i < binaryStr.length / 8; i++) {
+        var byteAsBits = binaryStr.substring(i * 8, i * 8 + 8);
+        var entropyByte = parseInt(byteAsBits, 2);
+        entropyArr.push(entropyByte);
+    }
+    console.log("Entropy Array:", entropyArr);
+
+    // Convert entropy array to mnemonic
+    var phrase = bip39.entropyToMnemonic(Buffer.from(entropyArr));
+    
+    // Set the mnemonic in the UI
+    DOM.phrase.val(phrase);
+
+    // Debugging: Check first 11 bits and corresponding word
+    console.log("First 11 bits:", bits.substring(0, 11));
+    var first11Bits = bits.substring(0, 11);
+    var index = parseInt(first11Bits, 2);
+    var wordlist = bip39.wordlists.english;
+    console.log("Index from first 11 bits:", index);
+    console.log("Word at index:", wordlist[index]);
+}
 
     
     
